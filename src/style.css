@@ -177,6 +177,19 @@ p {
   font-weight: 600;
 }
 
+.field-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.field-heading .field-label {
+  min-width: 0;
+  margin-bottom: 0;
+}
+
 .field-label span {
   color: var(--muted);
   font-weight: 400;
@@ -229,6 +242,196 @@ textarea:focus,
   right: 14px;
   bottom: 13px;
   font-size: 12px;
+}
+
+.search-toggle {
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.resource-search {
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid rgba(39, 227, 164, 0.14);
+  border-radius: 16px;
+  background: rgba(39, 227, 164, 0.045);
+}
+
+.resource-search__heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.resource-search__heading > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.resource-search__heading strong {
+  color: #dfece7;
+  font-size: 13px;
+}
+
+.resource-search__heading span:not(.badge) {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.resource-search__form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.resource-search__input {
+  width: 100%;
+  height: 44px;
+  min-width: 0;
+  padding: 0 13px;
+  color: var(--text);
+  background: rgba(4, 9, 10, 0.72);
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  outline: none;
+  font-size: 13px;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.resource-search__input:focus {
+  border-color: rgba(39, 227, 164, 0.5);
+  box-shadow: 0 0 0 4px rgba(39, 227, 164, 0.06);
+}
+
+.resource-search__input:disabled {
+  opacity: 0.6;
+}
+
+.resource-search__submit {
+  min-width: 62px;
+  padding: 0 14px;
+  color: #03241a;
+  background: linear-gradient(135deg, #3af0b4, #18c88d);
+  border: 0;
+  border-radius: 13px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.resource-search__submit:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.resource-search__status {
+  margin-top: 12px;
+}
+
+.resource-search__status:empty {
+  display: none;
+}
+
+.resource-search__status .notice {
+  margin-top: 0;
+}
+
+.search-state {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 42px;
+  padding: 9px 11px;
+  color: var(--muted);
+  background: rgba(0, 0, 0, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.045);
+  border-radius: 12px;
+  font-size: 11px;
+}
+
+.search-spinner {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  border: 2px solid rgba(39, 227, 164, 0.18);
+  border-top-color: var(--accent);
+  border-radius: 999px;
+  animation: search-spin 750ms linear infinite;
+}
+
+@keyframes search-spin {
+  to { transform: rotate(360deg); }
+}
+
+.resource-search__results {
+  display: flex;
+  max-height: 330px;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.resource-search__result {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 12px;
+  color: var(--text);
+  background: rgba(4, 9, 10, 0.48);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 160ms ease, border-color 160ms ease;
+}
+
+.resource-search__result:not(:disabled):active {
+  background: rgba(39, 227, 164, 0.08);
+  border-color: rgba(39, 227, 164, 0.22);
+}
+
+.resource-search__result:disabled {
+  opacity: 0.58;
+  cursor: wait;
+}
+
+.resource-search__result-body {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.resource-search__result-body strong {
+  display: -webkit-box;
+  overflow: hidden;
+  color: #e7efec;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.resource-search__result-body > span {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.resource-search__result-action {
+  flex: 0 0 auto;
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 650;
+  white-space: nowrap;
 }
 
 .code-row {

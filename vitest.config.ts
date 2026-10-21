@@ -10,7 +10,14 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],
-      include: ['src/lib/**/*.ts', 'src/providers/**/*.ts', 'src/repositories/**/*.ts', 'src/services/shareText.ts', 'src/services/mediaProbe.ts'],
+      include: [
+        'src/lib/**/*.ts',
+        'src/providers/**/*.ts',
+        'src/repositories/**/*.ts',
+        'src/services/laoerSearch.ts',
+        'src/services/shareText.ts',
+        'src/services/mediaProbe.ts',
+      ],
     },
   },
 })

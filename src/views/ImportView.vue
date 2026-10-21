@@ -1,7 +1,13 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import AppIcon from '../components/AppIcon.vue'
+import {
+  getLaoerSourceLabel,
+  resolveLaoerResource,
+  searchLaoerResources,
+  type LaoerSearchResult,
+} from '../services/laoerSearch'
 import { parseShareText } from '../services/shareText'
 import { detectKnownCloud, findProviderForUrl, requireProviderForUrl } from '../providers/registry'
 import { useLibraryStore } from '../stores/library'
@@ -14,6 +20,19 @@ const rawText = ref('')
 const code = ref('')
 const busy = ref(false)
 const errorMessage = ref('')
+const searchOpen = ref(false)
+const searchKeyword = ref('')
+const searchResults = ref<LaoerSearchResult[]>([])
+const searchBusy = ref(false)
+const searchError = ref('')
+const searchNotice = ref('')
+const resolvingToken = ref('')
+const searchInput = ref<HTMLInputElement>()
+
+let searchController: AbortController | undefined
+let resolveController: AbortController | undefined
+let searchRequestId = 0
+let resolveRequestId = 0
 
 const parsedPreview = computed(() => {
   try {
@@ -120,6 +139,100 @@ function useExample(): void {
   rawText.value = 'https://example.com/demo/video.mp4'
   code.value = ''
 }
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === 'AbortError'
+}
+
+function toggleResourceSearch(): void {
+  if (searchOpen.value) {
+    closeResourceSearch()
+    return
+  }
+
+  searchOpen.value = true
+  void nextTick(() => searchInput.value?.focus())
+}
+
+function closeResourceSearch(): void {
+  searchOpen.value = false
+  searchRequestId += 1
+  resolveRequestId += 1
+  searchController?.abort()
+  resolveController?.abort()
+  searchController = undefined
+  resolveController = undefined
+  searchBusy.value = false
+  resolvingToken.value = ''
+}
+
+async function runResourceSearch(): Promise<void> {
+  const keyword = searchKeyword.value.trim()
+  if (!keyword) {
+    searchError.value = '请输入要搜索的资源名称'
+    return
+  }
+  if (searchBusy.value) return
+
+  searchController?.abort()
+  const controller = new AbortController()
+  const requestId = ++searchRequestId
+  searchController = controller
+  searchBusy.value = true
+  searchError.value = ''
+  searchNotice.value = ''
+  searchResults.value = []
+
+  try {
+    const response = await searchLaoerResources(keyword, controller.signal)
+    if (requestId !== searchRequestId) return
+    searchResults.value = response.results
+    searchNotice.value = response.notice ?? (response.results.length === 0 ? '没有找到相关资源' : '')
+  } catch (error) {
+    if (requestId !== searchRequestId || isAbortError(error)) return
+    searchError.value = error instanceof Error ? error.message : '资源搜索失败'
+  } finally {
+    if (requestId === searchRequestId) {
+      searchBusy.value = false
+      searchController = undefined
+    }
+  }
+}
+
+async function selectSearchResult(result: LaoerSearchResult): Promise<void> {
+  if (resolvingToken.value) return
+
+  resolveController?.abort()
+  const controller = new AbortController()
+  const requestId = ++resolveRequestId
+  resolveController = controller
+  resolvingToken.value = result.tokenUrl
+  searchError.value = ''
+
+  try {
+    const resolvedUrl = await resolveLaoerResource(result, controller.signal)
+    if (requestId !== resolveRequestId) return
+    rawText.value = resolvedUrl
+    searchOpen.value = false
+    await nextTick()
+    document.getElementById('share-input')?.focus()
+  } catch (error) {
+    if (requestId !== resolveRequestId || isAbortError(error)) return
+    searchError.value = error instanceof Error ? error.message : '获取资源地址失败'
+  } finally {
+    if (requestId === resolveRequestId) {
+      resolvingToken.value = ''
+      resolveController = undefined
+    }
+  }
+}
+
+onBeforeUnmount(() => {
+  searchRequestId += 1
+  resolveRequestId += 1
+  searchController?.abort()
+  resolveController?.abort()
+})
 </script>
 
 <template>
@@ -131,7 +244,18 @@ function useExample(): void {
     </header>
 
     <form class="import-card glass-card" @submit.prevent="importResource">
-      <label class="field-label" for="share-input">分享链接或媒体地址</label>
+      <div class="field-heading">
+        <label class="field-label" for="share-input">分享链接或媒体地址</label>
+        <button
+          class="text-button search-toggle"
+          type="button"
+          :aria-expanded="searchOpen"
+          aria-controls="resource-search-panel"
+          @click="toggleResourceSearch"
+        >
+          {{ searchOpen ? '收起搜索' : '搜索资源' }}
+        </button>
+      </div>
       <div class="textarea-wrap">
         <textarea
           id="share-input"
@@ -141,6 +265,69 @@ function useExample(): void {
         />
         <button type="button" class="text-button example-button" @click="useExample">填入示例</button>
       </div>
+
+      <section
+        v-if="searchOpen"
+        id="resource-search-panel"
+        class="resource-search"
+        aria-label="资源搜索"
+      >
+        <div class="resource-search__heading">
+          <div>
+            <strong>搜索夸克资源</strong>
+            <span>资源检索由老二搜索提供</span>
+          </div>
+          <span v-if="searchResults.length" class="badge badge--neutral">{{ searchResults.length }} 条</span>
+        </div>
+
+        <div class="resource-search__form">
+          <input
+            ref="searchInput"
+            v-model="searchKeyword"
+            class="resource-search__input"
+            type="search"
+            autocomplete="off"
+            placeholder="输入影视或资源名称"
+            :disabled="searchBusy"
+            @keydown.enter.prevent="runResourceSearch"
+          />
+          <button
+            class="resource-search__submit"
+            type="button"
+            :disabled="searchBusy || !searchKeyword.trim()"
+            @click="runResourceSearch"
+          >
+            {{ searchBusy ? '搜索中' : '搜索' }}
+          </button>
+        </div>
+
+        <div class="resource-search__status" aria-live="polite">
+          <div v-if="searchBusy" class="search-state">
+            <span class="search-spinner" />
+            正在搜索资源…
+          </div>
+          <div v-else-if="searchError" class="notice notice--error" role="alert">{{ searchError }}</div>
+          <div v-else-if="searchResults.length" class="resource-search__results">
+            <button
+              v-for="result in searchResults"
+              :key="result.tokenUrl"
+              class="resource-search__result"
+              type="button"
+              :disabled="Boolean(resolvingToken)"
+              @click="selectSearchResult(result)"
+            >
+              <span class="resource-search__result-body">
+                <strong>{{ result.title }}</strong>
+                <span>{{ getLaoerSourceLabel(result.sourceType) }}</span>
+              </span>
+              <span class="resource-search__result-action">
+                {{ resolvingToken === result.tokenUrl ? '正在获取地址…' : '选择' }}
+              </span>
+            </button>
+          </div>
+          <div v-else-if="searchNotice" class="search-state">{{ searchNotice }}</div>
+        </div>
+      </section>
 
       <div class="code-row">
         <label class="field-label" for="code-input">提取码 <span>可选</span></label>
