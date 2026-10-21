@@ -7,14 +7,16 @@ import { requireProviderForUrl } from '../providers/registry'
 import type { ShareDescriptor } from '../providers/CloudProvider'
 import { describePlaybackKind } from '../services/mediaProbe'
 import {
+  describeNativePlaybackFailure,
   isNativeRuntime,
   openNativePlayer,
+  startNativePlayerEventTracking,
   startProgressTracking,
   stopNativePlayer,
 } from '../services/player'
 import { useLibraryStore } from '../stores/library'
 import { usePlaybackStore } from '../stores/playback'
-import type { PlayableSource } from '../types/domain'
+import type { LibraryItem, PlayableSource } from '../types/domain'
 
 const route = useRoute()
 const router = useRouter()
@@ -28,6 +30,7 @@ const errorMessage = ref('')
 const localProgress = ref(0)
 const localDuration = ref(0)
 let stopTracking: (() => void) | undefined
+let stopNativePlayerEvents: (() => void) | undefined
 let hlsPlayer: Hls | undefined
 let playbackRecorded = false
 
@@ -55,6 +58,36 @@ async function resolveIfNeeded(): Promise<PlayableSource> {
   return provider.resolvePlayable(item.value.file, toShareDescriptor())
 }
 
+async function launchNativePlayer(currentItem: LibraryItem, resolvedSource: PlayableSource): Promise<void> {
+  stopNativePlayerEvents?.()
+  stopNativePlayerEvents = await startNativePlayerEventTracking({
+    onReady: () => {
+      nativeReady.value = true
+      void markPlaybackStarted()
+      stopTracking ??= startProgressTracking((position, duration) => {
+        localProgress.value = position
+        localDuration.value = duration ?? localDuration.value
+        void library.updateProgress(currentItem.id, position, duration)
+      })
+    },
+    onExit: (started) => {
+      stopTracking?.()
+      stopTracking = undefined
+      if (!started) {
+        errorMessage.value = describeNativePlaybackFailure(currentItem.file.name)
+      }
+    },
+  })
+
+  try {
+    await openNativePlayer(resolvedSource, currentItem.title, currentItem.positionSeconds ?? 0)
+  } catch (error) {
+    stopNativePlayerEvents?.()
+    stopNativePlayerEvents = undefined
+    throw error
+  }
+}
+
 async function start(): Promise<void> {
   await library.initialize()
   if (!item.value) {
@@ -68,14 +101,7 @@ async function start(): Promise<void> {
     const resolvedSource = await resolveIfNeeded()
 
     if (native) {
-      await openNativePlayer(resolvedSource, currentItem.title, currentItem.positionSeconds ?? 0)
-      nativeReady.value = true
-      await markPlaybackStarted()
-      stopTracking = startProgressTracking((position, duration) => {
-        localProgress.value = position
-        localDuration.value = duration ?? localDuration.value
-        void library.updateProgress(currentItem.id, position, duration)
-      })
+      await launchNativePlayer(currentItem, resolvedSource)
     } else {
       preparing.value = false
       await nextTick()
@@ -117,9 +143,13 @@ async function markPlaybackStarted(): Promise<void> {
 async function reopenNativePlayer(): Promise<void> {
   if (!item.value || !source.value) return
   try {
-    await openNativePlayer(source.value, item.value.title, localProgress.value || item.value.positionSeconds || 0)
-    nativeReady.value = true
-    await markPlaybackStarted()
+    errorMessage.value = ''
+    nativeReady.value = false
+    const currentItem = item.value
+    await launchNativePlayer({
+      ...currentItem,
+      positionSeconds: localProgress.value || currentItem.positionSeconds,
+    }, source.value)
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : '无法重新打开播放器'
   }
@@ -138,6 +168,10 @@ function handleTimeUpdate(): void {
 }
 
 async function leavePlayer(): Promise<void> {
+  stopTracking?.()
+  stopTracking = undefined
+  stopNativePlayerEvents?.()
+  stopNativePlayerEvents = undefined
   if (native) await stopNativePlayer()
   else videoElement.value?.pause()
   playback.clearSession()
@@ -150,6 +184,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   stopTracking?.()
+  stopNativePlayerEvents?.()
   hlsPlayer?.destroy()
   const video = videoElement.value
   if (video && item.value) {

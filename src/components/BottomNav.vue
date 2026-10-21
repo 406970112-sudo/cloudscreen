@@ -5,8 +5,8 @@ import AppIcon from './AppIcon.vue'
 <template>
   <nav class="bottom-nav" aria-label="主导航">
     <RouterLink to="/" class="nav-item">
-      <AppIcon name="import" />
-      <span>导入</span>
+      <AppIcon name="search" />
+      <span>首页</span>
     </RouterLink>
     <RouterLink to="/library" class="nav-item">
       <AppIcon name="library" />

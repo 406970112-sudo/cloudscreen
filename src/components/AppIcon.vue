@@ -1,6 +1,6 @@
 <script setup lang="ts">
 defineProps<{
-  name: 'import' | 'library' | 'settings' | 'play' | 'heart' | 'heart-filled' | 'back' | 'link' | 'trash' | 'chevron' | 'shield' | 'clock' | 'folder'
+  name: 'import' | 'search' | 'library' | 'settings' | 'play' | 'heart' | 'heart-filled' | 'back' | 'link' | 'trash' | 'chevron' | 'shield' | 'clock' | 'folder'
   size?: number
 }>()
 </script>
@@ -20,6 +20,9 @@ defineProps<{
   >
     <template v-if="name === 'import'">
       <path d="M12 16V4m0 0L7 9m5-5 5 5" /><path d="M5 14v5h14v-5" />
+    </template>
+    <template v-else-if="name === 'search'">
+      <circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" />
     </template>
     <template v-else-if="name === 'library'">
       <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21.5v-16Z" /><path d="M4 18.5A2.5 2.5 0 0 1 6.5 16H20" />

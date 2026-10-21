@@ -106,7 +106,10 @@ export class QuarkApi implements QuarkApiPort {
     stoken: string,
     file: RemoteFile,
   ): Promise<{ url: string; headers: Record<string, string> }> {
-    const socialToken = await this.getSocialToken().catch(() => '')
+    const socialToken = await this.getSocialToken().catch((error) => {
+      if (error instanceof QuarkApiError && (error.code === 31001 || error.code === 412)) return ''
+      throw error
+    })
     const shareFidToken = String(file.providerData?.shareFidToken ?? '')
     if (!shareFidToken) throw new QuarkApiError('分享文件令牌缺失，请重新解析链接')
 

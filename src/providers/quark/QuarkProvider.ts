@@ -12,6 +12,14 @@ function looksLikeVideo(name: string): boolean {
   return Boolean(extension && VIDEO_EXTENSIONS.has(extension))
 }
 
+function extractShareId(url: string): string | undefined {
+  try {
+    return new URL(url).pathname.match(/^\/s\/([a-zA-Z0-9]+)/)?.[1]
+  } catch {
+    return undefined
+  }
+}
+
 function mapShareFile(item: QuarkShareListItem): RemoteFile {
   return {
     id: item.fid,
@@ -57,8 +65,7 @@ export class QuarkProvider implements CloudProvider {
 
   async parseShare(url: string, code?: string, title?: string): Promise<ShareDescriptor> {
     if (!this.canHandle(url)) throw new Error('不是有效的夸克分享链接')
-    const parsed = new URL(url)
-    const shareId = parsed.pathname.match(/^\/s\/([a-zA-Z0-9]+)/)?.[1]
+    const shareId = extractShareId(url)
     if (!shareId) throw new Error('无法从链接中提取夸克分享 ID')
     return {
       shareId: createResourceId(this.id, url, code),
@@ -89,7 +96,7 @@ export class QuarkProvider implements CloudProvider {
       }
     } catch (error) {
       if (error instanceof QuarkApiError) {
-        if (error.code === 23018 || error.code === 31001 || error.code === 412) {
+        if (error.code === 23018 || error.code === 31001 || error.code === 41020 || error.code === 412) {
           throw new QuarkLoginRequiredError('该文件需要夸克登录；登录成功后会自动继续直接播放，不会转存文件。', error.code)
         }
         if (error.code === 41001 || error.code === 41004) {
@@ -102,7 +109,7 @@ export class QuarkProvider implements CloudProvider {
   }
 
   private getPwdId(share: ShareDescriptor): string {
-    const pwdId = String(share.providerData?.pwdId ?? '')
+    const pwdId = String(share.providerData?.pwdId ?? '') || extractShareId(share.canonicalUrl)
     if (!pwdId) throw new Error('夸克分享 ID 缺失')
     return pwdId
   }

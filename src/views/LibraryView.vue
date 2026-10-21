@@ -48,8 +48,8 @@ const visibleItems = computed(() => activeTab.value === 'history' ? library.hist
         <AppIcon :name="activeTab === 'history' ? 'clock' : 'heart'" :size="30" />
       </div>
       <h2>{{ activeTab === 'history' ? '还没有播放记录' : '还没有收藏' }}</h2>
-      <p>导入一个授权媒体直链后，在资源详情页开始播放或收藏。</p>
-      <RouterLink to="/" class="secondary-button">去导入</RouterLink>
+      <p>搜索或粘贴一个资源后，在资源详情页开始播放或收藏。</p>
+      <RouterLink to="/" class="secondary-button">去搜索</RouterLink>
     </div>
 
     <div v-else class="card-list">
